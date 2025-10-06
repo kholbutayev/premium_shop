@@ -1642,17 +1642,33 @@ async def process_callback(callback_query: types.CallbackQuery):
             )
             
         elif call_data == "checkoutCart":
-            await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=callback_query.message.message_id,
-                text=f"Введите ваш Email адрес {tt.or_press_back}",
-                reply_markup=markups.single_button(markups.btnBackCart),
-            )
-            await state_handler.checkoutCart.email.set()
-            state = Dispatcher.get_current().current_state()
-            await state.update_data(state_message=callback_query.message.message_id)
-            await state.update_data(user_id=chat_id)
-            await state.update_data(item_list_comma=user.get_cart_comma())
+    # Фойдаланувчи маълумотлари
+    user_id = chat_id
+    user = usr.User(user_id)
+    items = user.get_cart_amount()
+    total_price = user.get_cart_price()
+    
+    # ✅ Фойдаланувчига хабар
+    await bot.edit_message_text(
+        chat_id=user_id,
+        message_id=callback_query.message.message_id,
+        text="✅ Заказ қабул қилинди!\n\nЯқин соатларда оператор сиз билан боғланади.",
+        reply_markup=markups.single_button(markups.btnBackMain)
+    )
+    
+    # 🛍️ Сотувчига хабар
+    order_text = f"📦 ЯНГИ ЗАКАЗ!\n\n👤 Фойдаланувчи ID: {user_id}\n\n🛒 Маҳсулотлар:\n"
+    for item, amount in items.items():
+        order_text += f"- {item.get_name()} x{amount} = {item.get_price() * amount} сум\n"
+    order_text += f"\n💰 Жами: {total_price} сум"
+
+    await bot.send_message(
+        chat_id=204979740,
+        text=order_text
+    )
+    
+    # Буюртма тугаллангач саватни тозалаш
+    user.clear_cart()
 
 # State handlers
 # Item management
@@ -2100,18 +2116,11 @@ async def searchSetQuery(message: types.Message, state: FSMContext):
 
 # Cart checkout
 # Required
-@dp.message_handler(state=state_handler.checkoutCart.email)
-async def checkoutCartSetEmail(message: types.Message, state: FSMContext):
-    state = Dispatcher.get_current().current_state()
-    user = usr.User(message.chat.id)
-    if matchre(r"^[A-Za-z0-9\.\+_-]+@[A-Za-z0-9\._-]+\.[a-zA-Z]*$", message.text): # I am not familiar with how re package works. Taken from here: https://stackoverflow.com/questions/8022530/how-to-check-for-valid-email-address
-        await state.update_data(email=message.text)
-        if settings.is_phone_number_enabled():
-            text = f"Введите ваш номер телефона {tt.or_press_back}"
-            await state_handler.checkoutCart.phone_number.set()
-        elif settings.is_delivery_enabled() and user.is_cart_delivery():
-            text = f"Введите адрес доставки {tt.or_press_back}"
-            await state_handler.checkoutCart.home_adress.set()                  
+@dp.message_handler(state=state_handler.checkoutCart.phone_number)
+async def checkoutCartSetPhone(message: types.Message, state: FSMContext):
+    await state.update_data(phone_number=message.text)
+    await message.answer("Илтимос, манзилингизни ёзинг (ёки 'Йўқ' деб ёзинг):")
+    await state_handler.checkoutCart.home_adress.set()             
     else:
         text = f"\"{message.text}\" не является действительным Email адресом."
         await state.finish()
