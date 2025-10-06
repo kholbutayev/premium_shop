@@ -63,20 +63,20 @@ class seeUserProfile(StatesGroup):
 
 
 # Checkout
+from aiogram.dispatcher.filters.state import StatesGroup, State
+
 class checkoutCart(StatesGroup):
     # Data
     user_id = State()
     item_list_comma = State()
     order_id = State()
-    
-    # Required
-    email = State()
-    additional_message = State()
-    confirmation = State()
 
-    # Additional
+    # Required
     phone_number = State()
     home_adress = State()
+    confirmation = State()
+
+    # Optional
     captcha = State()
 
 # Main settings
